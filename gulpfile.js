@@ -1,72 +1,171 @@
 var gulp = require('gulp');
-var browserSync = require('browser-sync').create();
-var reload = browserSync.reload;
-var plumber = require('gulp-plumber');
-var rename = require('gulp-rename');
+var jshint = require('gulp-jshint');
 var sass = require('gulp-sass');
-var csslint = require('gulp-csslint');
-var autoPrefixer = require('gulp-autoprefixer');
-//if node version is lower than v.0.1.2
-require('es6-promise').polyfill();
-var cssComb = require('gulp-csscomb');
-var cmq = require('gulp-merge-media-queries');
-var cleanCss = require('gulp-clean-css');
-var uglify = require('gulp-uglify');
-gulp.task('sass',function(){
-    gulp.src(['./src/assets/styles/**/*.sass'])
-        .pipe(plumber({
-            handleError: function (err) {
-                console.log(err);
-                this.emit('end');
-            }
-        }))
-        .pipe(sass())
-        .pipe(autoPrefixer())
-        .pipe(cssComb())
-        .pipe(cmq({log:true}))
-        .pipe(csslint())
-        .pipe(csslint.formatter())
-        .pipe(gulp.dest('./dist/assets/styles'))
-        .pipe(rename({
-            suffix: '.min'
-        }))
-        .pipe(cleanCss())
-        .pipe(gulp.dest('./dist/assets/styles/'))
-        .pipe(browserSync.stream())
+var pug = require('gulp-pug');
+var del = require('del');
+var gutil = require('gulp-util');
+var plumber = require('gulp-plumber');
+var autoprefixer    = require('gulp-autoprefixer');
+var browserSync = require('browser-sync').create(); 
+
+// Browserify + Watchify
+var browserify = require('browserify');
+var watchify = require('watchify');
+var buffer = require('vinyl-buffer');
+var source = require('vinyl-source-stream');
+var sourcemaps = require('gulp-sourcemaps');
+var assign = require('lodash.assign');
+
+var paths = {
+	dest    : {
+        html: './dist/',
+        css: './dist/assets/styles/',
+        js: './dist/assets/scripts/',
+        imgs: './dist/assets/images/'
+    },
+	src : {
+        scripts : './src/assets/scripts/app.js',
+        styles  : './src/assets/styles/**/*.sass',
+        html    : './src/template/**/*.pug',
+        images  : ['./src/assets/favicon.ico', './client/assets/images/**/*.*']
+    }
+};
+
+/*
+ * Cleans the dist directory
+ */
+gulp.task('clean:styles', function (cb) {
+  del(paths.dest.css, cb);
 });
-gulp.task('js',function(){
-    gulp.src(['src/assets/scripts/**/*.js'])
-        .pipe(plumber({
-            handleError: function (err) {
-                console.log(err);
-                this.emit('end');
-            }
-        }))
-        .pipe(gulp.dest('./dist/assets/scripts'))
-        .pipe(rename({
-            suffix: '.min'
-        }))
-        .pipe(uglify())
-        .pipe(gulp.dest('./dist/assets/scripts/'))
-        .pipe(browserSync.stream())
+
+gulp.task('clean:images', function (cb) {
+  del(paths.dest.imgs, cb);
 });
-gulp.task('template',function(){
-    gulp.src(['src/template/**/*.html'])
-        .pipe(plumber({
-            handleError: function (err) {
-                console.log(err);
-                this.emit('end');
-            }
-        }))
-        .pipe(gulp.dest('./dist/'))
-        .pipe(browserSync.stream())
+
+gulp.task('clean:html', function (cb) {
+  del(paths.dest.html, cb);
 });
-gulp.task('default',function(){
+
+/*
+ * Checks the validity of JS code
+ */
+gulp.task('lint', function () {
+	return gulp.src(paths.src.scripts)
+        .pipe(jshint())
+        .pipe(jshint.reporter('default'));
+});
+
+/*
+ * Compiles CJS modules into an all-in-one bundle
+ */
+
+// Options browserify
+var customOpts = {
+    entries: [paths.src.scripts],
+    debug: true
+};
+
+// Utilisation du module lowdash.assign pour fusionner
+// les options browserify et watchify dans un même objet
+var opts = assign({}, watchify.args, customOpts);
+
+// Initialisation de Watchify
+var bundler = watchify(browserify(opts));
+
+// Il est possible d'ajouter des transformations ici, par exemple :
+// bundler.transform(coffeeify);
+
+bundler.on('update', bundle); // listener sur l'évènement 'update' pour mettre à jour pour le bundle
+bundler.on('log', gutil.log); // log les sorties du bundler sur le terminal
+gulp.task('scripts', bundle); // ajout de la tâche `gulp scripts` pour assembler le bundle
+
+function bundle() {
+    return bundler.bundle()
+        // log les errors quand elles surviennent
+        .on('error', gutil.log.bind(gutil, 'Browserify Error'))
+        .pipe(source('bundle.js'))
+        // optionnel, permet de bufferiser le contenu des fichiers pour améliorer les performances du build
+        .pipe(buffer())
+        // optionnel, permet d'ajouter les sourcemaps pour le debug
+        .pipe(sourcemaps.init({loadMaps: true}))
+        // Ecrit les fichiers .map
+        .pipe(sourcemaps.write('./maps/'))
+        // Copie le tout dans le répertoire final
+        .pipe(gulp.dest(paths.dest.js))
+        // stream le résultat à BrowserSync pour qu'il recharge automatiquement la page
+        .pipe(browserSync.stream());
+}
+
+
+/*
+ * Compiles less files into css
+ */
+gulp.task('styles', ['clean:styles'], function () {
+    return gulp.src(paths.src.styles)
+        .pipe(plumber())
+        .pipe(sass({outputStyle: 'compressed'}).on('error', sass.logError))
+        .pipe(sourcemaps.write({includeContent: false}))
+        .pipe(sourcemaps.init({loadMaps: true}))
+        .pipe(autoprefixer({
+            browsers: ['last 2 versions'],
+            cascade: false
+        }))
+        .pipe(sourcemaps.write('./maps'))
+        .pipe(gulp.dest(paths.dest.css))
+        .pipe(browserSync.stream());
+});
+
+/*
+ * Copies html files to dist directory
+ */
+gulp.task('html', ['clean:html'], function () {
+    return gulp.src(paths.src.html)
+        .pipe(plumber())
+        .pipe(pug({pretty: true}))
+		.pipe(gulp.dest(paths.dest.html))
+        .pipe(browserSync.stream());
+});
+
+/*
+ * Copies images files to dist directory
+ */
+gulp.task('images', ['clean:images'], function () {
+	return gulp.src(paths.src.images)
+		.pipe(gulp.dest(paths.dist + '/img'))
+        .pipe(browserSync.stream());
+});
+
+/*
+ * Macro task to re-build the whole dist directory
+ */
+gulp.task('build', [
+	'lint',
+    'scripts',
+	'html', 
+	'images',
+	'styles'
+]);
+
+/*
+ * Synchronizes the browser with the 'dist' directory
+ */
+gulp.task('serve', ['build'], function () {
     browserSync.init({
-        server: "dist/"
+        notify: true,
+        port: 9000,
+        server: {
+            baseDir: ['dist']
+        }
     });
-    gulp.watch('./src/assets/scripts/**/*.js',['js']);
-    gulp.watch('./src/assets/styles/**/*.sass',['sass']);
-    gulp.watch('./src/template/**/*.html',['template']);
-    gulp.watch('./src/assets/images/**/*',['image']);
+    
+    gulp.watch(paths.src.scripts, ['lint', 'scripts']);
+    gulp.watch(paths.src.styles, ['styles']);
+    gulp.watch(paths.src.html, ['html']);
+    gulp.watch(paths.src.images, ['images']);
+
 });
+
+/*
+ * Default task, builds everything and watches for changes
+ */
+gulp.task('default', ['serve']);

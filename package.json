@@ -1,25 +1,46 @@
 {
-  "name": "gulp",
+  "name": "gulp-tuto",
   "version": "1.0.0",
-  "description": "",
-  "main": "gulpfile.js",
+  "description": "Gulp Tutorial",
+  "main": "index.html",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "gulp test"
   },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "browser-sync": "^2.23.6",
-    "es6-promise": "^4.2.4",
-    "gulp": "^3.9.1",
-    "gulp-autoprefixer": "^4.1.0",
-    "gulp-clean-css": "^3.9.2",
-    "gulp-csscomb": "^3.0.8",
-    "gulp-csslint": "^1.0.0",
-    "gulp-merge-media-queries": "^0.2.1",
-    "gulp-plumber": "^1.2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mnemotix/gulp-tuto/"
+  },
+  "keywords": [
+    "Gulp"
+  ],
+  "author": "Nicolas Delaforge <nicolas.delaforge@mnemotix.com>",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "autoprefixer": "^9.4.5",
+    "browser-sync": "^2.7.12",
+    "browserify": "^10.2.4",
+    "del": "^1.2.0",
+    "gulp": "^3.9.0",
+    "gulp-autoprefixer": "^6.0.0",
+    "gulp-clean": "^0.3.1",
+    "gulp-concat": "^2.6.0",
+    "gulp-jshint": "^1.11.0",
+    "gulp-less": "^3.0.3",
+    "gulp-plumber": "^1.2.1",
+    "gulp-pug": "^4.0.1",
     "gulp-rename": "^1.2.2",
-    "gulp-sass": "^3.1.0",
-    "gulp-uglify": "^3.0.0"
+    "gulp-sass": "^4.0.2",
+    "gulp-sourcemaps": "^1.5.2",
+    "gulp-uglify": "^1.2.0",
+    "gulp-util": "^3.0.6",
+    "lodash": "^3.9.3",
+    "lodash.assign": "^3.2.0",
+    "node-sass": "^4.11.0",
+    "vinyl-buffer": "^1.0.0",
+    "vinyl-source-stream": "^1.1.0",
+    "watchify": "^3.2.3"
+  },
+  "dependencies": {
+    "jquery": "^2.1.4"
   }
 }
